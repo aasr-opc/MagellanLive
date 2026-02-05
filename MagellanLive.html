@@ -1,0 +1,1377 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>Interactive Game Map (Fixed Aspect Ratio)</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background: #000;
+        }
+
+        #map,
+        .leaflet-container {
+            background: #000;
+        }
+
+        #map {
+            height: 100vh;
+            width: 100%;
+        }
+
+        #controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            color: white;
+            max-width: 250px;
+        }
+
+        #map-selector {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            color: white;
+            max-width: 250px;
+        }
+
+            #map-selector h3 {
+                margin-top: 0;
+                border-bottom: 1px solid #444;
+                padding-bottom: 5px;
+            }
+
+        .map-thumbnail {
+            width: 60px;
+            height: 60px;
+            background-size: cover;
+            background-position: center;
+            margin: 5px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            display: inline-block;
+        }
+
+            .map-thumbnail:hover {
+                border: 2px solid #4a90e2;
+            }
+
+            .map-thumbnail.selected {
+                border: 2px solid #4a90e2;
+            }
+
+        #map-list {
+            margin-top: 10px;
+        }
+
+            #map-list div {
+                padding: 5px;
+                cursor: pointer;
+                margin-bottom: 5px;
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 3px;
+            }
+
+                #map-list div:hover {
+                    background: rgba(255, 255, 255, 0.2);
+                }
+
+        button {
+            margin: 5px;
+            padding: 5px 10px;
+            cursor: pointer;
+            background: #4a90e2;
+            color: white;
+            border: none;
+            border-radius: 3px;
+        }
+
+        #category-controls label {
+            margin-right: 10px;
+            cursor: pointer;
+            color: white;
+        }
+
+        #exitAdminMode, #saveLocal, #submitEdits, #changePassword, #registerPanel, #message, #deleteUserPanel, #loadEdits, #controls-divider, #controls-divider-top, #changePasswordTop {
+            display: none;
+        }
+
+        #controls-divider,
+        #controls-divider-top {
+            height: 1px;
+            background: rgba(255, 255, 255, 0.2);
+            margin: 6px 0;
+        }
+
+        #message {
+            position: absolute;
+            top: 50px;
+            right: 10px;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        .marker-menu button {
+            width: 100%;
+            margin: 2px;
+            padding: 5px;
+        }
+
+        input {
+            margin: 5px;
+            padding: 5px;
+            border-radius: 3px;
+            border: 1px solid #ccc;
+        }
+
+        #layer-menu {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            max-width: 200px;
+            max-height: 90vh;
+            overflow: hidden;
+        }
+
+        #layer-content {
+            margin-top: 10px;
+            max-height: 55vh;
+            overflow-y: scroll;
+            padding-right: 8px;
+            scrollbar-width: thin;
+            scrollbar-color: #555 transparent;
+        }
+
+        #layer-content::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #layer-content::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        #layer-content::-webkit-scrollbar-thumb {
+            background-color: #555;
+            border-radius: 8px;
+        }
+
+            #layer-menu h3 {
+                margin-top: 0;
+                border-bottom: 1px solid #444;
+                padding-bottom: 5px;
+                cursor: pointer;
+            }
+
+                #layer-menu h3:after {
+                    content: " ▼";
+                    font-size: 0.8em;
+                    float: right;
+                }
+
+            #layer-menu.collapsed h3:after {
+                content: " ▶";
+            }
+
+            #layer-menu.collapsed #layer-content {
+                display: none;
+            }
+
+        #layer-content {
+            margin-top: 10px;
+        }
+
+        .layer-category {
+            margin-bottom: 10px;
+            border-bottom: 1px solid #444;
+            padding-bottom: 5px;
+        }
+
+            .layer-category h4 {
+                margin: 0 0 5px 0;
+                font-size: 1em;
+            }
+
+        .layer-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 3px;
+            padding: 3px;
+            border-radius: 3px;
+        }
+
+            .layer-item:hover {
+                background: rgba(255, 255, 255, 0.1);
+            }
+
+        .layer-checkbox {
+            margin-right: 8px;
+        }
+
+        .layer-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+            margin-right: 8px;
+        }
+
+        #layer-zoom {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #444;
+        }
+
+            #layer-zoom .leaflet-control-zoom {
+                display: flex;
+                gap: 4px;
+                background: transparent;
+                box-shadow: none;
+                margin: 0;
+            }
+
+                #layer-zoom .leaflet-control-zoom a {
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 36px;
+                    height: 28px;
+                    line-height: 28px;
+                    background: #4a90e2;
+                    color: white;
+                    border-radius: 3px;
+                    border: none;
+                }
+
+                    #layer-zoom .leaflet-control-zoom a:hover {
+                        background: #357ab8;
+                    }
+
+        #edit-marker-modal {
+            position: absolute;
+            top: 60px;
+            right: 10px;
+            z-index: 1100;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 12px;
+            border-radius: 6px;
+            width: 260px;
+            display: none;
+        }
+
+            #edit-marker-modal h4 {
+                margin: 0 0 8px 0;
+            }
+
+            #edit-marker-modal label {
+                display: block;
+                margin-top: 6px;
+                font-size: 0.9em;
+            }
+
+            #edit-marker-modal input,
+            #edit-marker-modal select {
+                width: 100%;
+                margin: 4px 0;
+                padding: 6px;
+                border-radius: 3px;
+                border: 1px solid #ccc;
+            }
+
+            #edit-marker-modal .modal-actions {
+                display: flex;
+                gap: 6px;
+                margin-top: 8px;
+            }
+
+            #edit-marker-modal .danger {
+                background: #c0392b;
+            }
+
+        #changePasswordPanel, #deleteUserPanel {
+            position: absolute;
+            top: 60px;
+            right: 10px;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.85);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            max-width: 250px;
+            display: none;
+        }
+
+            #changePasswordPanel div,
+            #deleteUserPanel div {
+                margin-bottom: 5px;
+                font-weight: bold;
+            }
+
+            #deleteUserPanel select {
+                width: 100%;
+                margin-bottom: 8px;
+            }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <button onclick="showRegisterPanel()">Register Users</button>
+        <button onclick="loginAsAdmin()">Account Login</button>
+
+        <div id="controls-divider-top"></div>
+
+        <button id="loadEdits" onclick="openEditsFilePicker()">Import JSON Markers</button>
+        <button id="submitEdits" onclick="submitLocalEdits()">Export JSON Markers</button>
+        <button id="saveLocal" onclick="saveLocalEdits()">Save Local Browser Edits</button>
+        <button id="exitAdminMode" onclick="exitAdminMode()">Exit Administrator -CP</button>
+
+        <div id="controls-divider"></div>
+
+        <button id="changePassword" onclick="changePassword(currentAdmin)">Modify Password</button>
+        <button id="changePasswordTop" onclick="changePassword(currentAdmin)">Modify The Administrator Password</button>
+        <div id="message"></div>
+    </div>
+
+    <input type="file" id="editsFileInput" accept="application/json" style="display:none" onchange="importEditsFromFile(this.files[0])">
+
+    <div id="registerPanel" style="position: absolute; top: 60px; right: 10px; z-index: 1000; background: rgba(0, 0, 0, 0.85); color: white; padding: 10px; border-radius: 5px; max-width: 250px;">
+        <div style="margin-bottom: 5px; font-weight: bold;">Register</div>
+        <input type="text" id="registerUsername" placeholder="Username">
+        <input type="password" id="registerPassword" placeholder="Password">
+        <button onclick="registerUser()">Create Account</button>
+        <button onclick="document.getElementById('registerPanel').style.display='none'">Cancel</button>
+    </div>
+
+    <div id="changePasswordPanel" style="position: absolute; top: 60px; right: 10px; z-index: 1000; background: rgba(0, 0, 0, 0.85); color: white; padding: 10px; border-radius: 5px; max-width: 250px; display: none;">
+        <div style="margin-bottom: 5px; font-weight: bold;">Change Password</div>
+        <input type="password" id="newPassword" placeholder="New password">
+        <button onclick="submitPasswordChange()">Update Password</button>
+        <button onclick="document.getElementById('changePasswordPanel').style.display='none'">Cancel</button>
+    </div>
+
+    <div id="deleteUserPanel" style="position: absolute; top: 60px; right: 10px; z-index: 1000; background: rgba(0, 0, 0, 0.85); color: white; padding: 10px; border-radius: 5px; max-width: 250px; display: none;">
+        <div style="margin-bottom: 5px; font-weight: bold;">Delete User</div>
+        <select id="deleteUserSelect"></select>
+        <button onclick="deleteUser()">Delete User</button>
+        <button onclick="document.getElementById('deleteUserPanel').style.display='none'">Cancel</button>
+    </div>
+
+    <div id="layer-menu">
+        <h3 onclick="toggleLayerMenu()">Layers</h3>
+        <div id="layer-content">
+            <div class="layer-category">
+                <h4>Mining Locations</h4>
+                <div id="mining-layer-items"></div>
+            </div>
+            <div class="layer-category">
+                <h4>Town Locations</h4>
+                <div id="town-layer-items"></div>
+            </div>
+
+            <!-- Creating A New Category [1 of 4] -->
+            <!--
+            <div class="layer-category">
+                <h4>Example Category</h4>
+                <div id="example-layer-items"></div>
+            </div>
+            -->
+           
+            <div class="layer-category" id="custom-layers">
+                <h4>Custom Markers</h4>
+            </div>
+            <div id="layer-zoom"></div>
+        </div>              
+    </div>
+
+    <div id="map-selector">
+        <h3>Maps</h3>
+        <div id="map-thumbnails"></div>
+        <div id="map-list"></div>
+    </div>
+
+    <div id="map"></div>
+
+    <div id="edit-marker-modal">
+        <h4>Edit Marker</h4>
+        <label for="editMarkerName">Name</label>
+        <input type="text" id="editMarkerName">
+
+        <label for="editMarkerDescription">Description</label>
+        <input type="text" id="editMarkerDescription">
+
+        <label for="editMarkerType">Marker Type</label>
+        <select id="editMarkerType"></select>
+
+        <div class="modal-actions">
+            <button onclick="saveEditedMarker()">Save</button>
+            <button onclick="closeEditMarkerModal()">Cancel</button>
+            <button class="danger" onclick="deleteEditingMarker()">Delete</button>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+        // --- MASTER ADMIN CREDENTIALS ---
+        const DEFAULT_MASTER_PASSWORD = "MasterKey123";
+        const MASTER_ADMIN = {
+            username: "Arthur",
+            password: localStorage.getItem('masterAdminPassword') || DEFAULT_MASTER_PASSWORD
+        };
+
+        const MAX_ZOOM_300_PERCENT = Math.log2(3);
+
+        // --- MAP CONFIGURATION ---
+        // Format to Add New Worlds Below:
+
+        // const MAPS = {
+        //     "britannia": {
+        //         displayName: "Sif [RP] - Ancien",
+        //         imageUrl: 'site_world/01.png',
+        //         previewUrl: 'site_world/previews/01.png',
+        //         bounds: [[0, 0], [1919, 2000]],
+        //         initialZoom: 0,
+        //         initialCenter: [959.5, 1000],
+        //         preDefinedMarkers: [// Example: { lat: 1000, lng: 1000, name: "Hello", desc: "Main city of Britannia", category: "Gneiss" },]
+        //     },
+        //     "britannia_02": {
+        //         displayName: "Sif [RP] - Ancien (02)",
+        //         imageUrl: 'site_world/02.png',
+        //         previewUrl: 'site_world/previews/02.png',
+        //         bounds: [[0, 0], [1919, 2000]],
+        //         initialZoom: 0,
+        //         initialCenter: [959.5, 1000],
+        //         preDefinedMarkers: [// Example: { lat: 1000, lng: 1000, name: "Hello", desc: "Main city of Britannia", category: "Gneiss" },]
+        //     }
+        // };
+
+        const MAPS = {
+            "britannia": {
+                displayName: "Sif [RP] - Ancien",
+                imageUrl: 'site_world/01.png',
+                previewUrl: 'site_world/previews/01.png',
+                bounds: [[0, 0], [1919, 2000]],
+                initialZoom: 0,
+                initialCenter: [959.5, 1000],
+                preDefinedMarkers: []
+            }
+        };
+
+        // --- GLOBAL VARIABLES ---
+        let map;
+        let currentMap = "britannia";
+        let allMarkers = {};
+        let currentAdmin = null;
+        let isMasterAdmin = false;
+        let customLayers = {};
+        let editingMarker = null;
+        let isAdminMode = false;
+
+        // === CATEGORY DEFINITIONS ===
+        // Add a new category here (name, color, icon).
+        const categories = {
+            // Mining Locations
+            "Gneiss": { color: "purple", iconUrl: 'site_icons/gneiss.png' },
+            "Copper": { color: "red", iconUrl: 'site_icons/copper.png' },
+            "Tin": { color: "blue", iconUrl: 'site_icons/tin.png' },
+            "Granite": { color: "green", iconUrl: 'site_icons/granite.png' },
+            "Iron": { color: "red", iconUrl: 'site_icons/iron.png' },
+            "Limestone": { color: "blue", iconUrl: 'site_icons/limestone.png' },
+            "Silver": { color: "purple", iconUrl: 'site_icons/silver.png' },
+
+            // Town Locations
+            "Clan Town": { color: "purple", iconUrl: 'site_icons/town.png' },
+
+            // <!-- Creating A New Category [2 of 4] -->
+            "Example Category": { color: "orange", iconUrl: 'site_icons/example.png' }
+        };
+
+        // === CATEGORY GROUPS ===
+        // Add the category name to the group you want it under in the Layers menu.
+        const categoryGroups = {
+            "Mining Locations": ["Gneiss", "Copper", "Tin", "Granite", "Iron", "Limestone", "Silver"],
+            "Town Locations": ["Clan Town"],
+            // <!-- Creating A New Category [3 of 4] -->
+            "Example Category": ["Example Category"]
+        };
+
+        const layers = {};
+        const icons = {};
+        for (const [name, config] of Object.entries(categories)) {
+            icons[name] = L.icon({
+                iconUrl: config.iconUrl,
+                iconSize: [32, 32],
+                iconAnchor: [16, 32],
+                popupAnchor: [0, -32]
+            });
+        }
+
+        // --- INITIALIZE MAP ---
+        function initMap() {
+            const mapConfig = MAPS[currentMap];
+            map = L.map('map', {
+                crs: L.CRS.Simple,
+                minZoom: -2,
+                maxZoom: MAX_ZOOM_300_PERCENT,
+                zoomSnap: 0.25,
+                zoomDelta: 0.25,
+                zoomControl: false
+            }).setView(mapConfig.initialCenter, mapConfig.initialZoom);
+
+            const zoomControl = L.control.zoom({ position: 'topleft' }).addTo(map);
+            const zoomContainer = zoomControl.getContainer();
+            document.getElementById('layer-zoom').appendChild(zoomContainer);
+
+            loadMap(currentMap);
+            initMapSelector();
+            initLayerMenu();
+        }
+
+        // --- LOAD MAP ---
+        function loadMap(mapName) {
+            if (map) {
+                map.eachLayer(layer => {
+                    if (layer instanceof L.ImageOverlay || !(layer instanceof L.Control)) {
+                        map.removeLayer(layer);
+                    }
+                });
+            }
+
+            const mapConfig = MAPS[mapName];
+            currentMap = mapName;
+
+            L.imageOverlay(mapConfig.imageUrl, mapConfig.bounds).addTo(map);
+            map.setMaxBounds(mapConfig.bounds);
+            map.fitBounds(mapConfig.bounds);
+
+            // !--CATEGORIES & ICONS
+            // !--Add / remove categories here to show a checkbox in the Layers menu
+            allMarkers[mapName] = Object.keys(categories).reduce((acc, key) => {
+                acc[key] = [];
+                return acc;
+            }, {});
+            customLayers[mapName] = {};
+            layers[mapName] = {};
+
+            for (const [name] of Object.entries(categories)) {
+                layers[mapName][name] = L.layerGroup().addTo(map);
+            }
+
+            mapConfig.preDefinedMarkers.forEach(marker => {
+                const m = L.marker([marker.lat, marker.lng], { icon: icons[marker.category], title: marker.name })
+                    .addTo(layers[mapName][marker.category])
+                    .bindPopup(`<b>${marker.name}</b><br>${marker.desc}`);
+                m.options.markerCategory = marker.category;
+                m.options.markerType = 'default';
+                m.options.markerDescription = marker.desc || 'No description';
+                m.options.isUserCreated = false;
+                allMarkers[mapName][marker.category].push(m);
+            });
+
+            loadLocalEdits(mapName);
+            updateMapSelectorUI();
+            updateLayerMenu();
+            renderDefaultLayerItems();
+            refreshEditMarkerTypes();
+        }
+
+        // --- MAP SELECTOR UI ---
+        function initMapSelector() {
+            const thumbnailsContainer = document.getElementById('map-thumbnails');
+            const mapListContainer = document.getElementById('map-list');
+
+            thumbnailsContainer.innerHTML = '';
+            mapListContainer.innerHTML = '';
+
+            for (const [mapName, mapConfig] of Object.entries(MAPS)) {
+                const thumb = document.createElement('div');
+                thumb.className = 'map-thumbnail';
+                thumb.style.backgroundImage = `url('${mapConfig.previewUrl}')`;
+                thumb.title = mapConfig.displayName;
+                thumb.onclick = () => {
+                    saveLocalEdits(currentMap);
+                    loadMap(mapName);
+                };
+                if (mapName === currentMap) thumb.classList.add('selected');
+                thumbnailsContainer.appendChild(thumb);
+
+                const listItem = document.createElement('div');
+                listItem.textContent = mapConfig.displayName;
+                listItem.onclick = () => {
+                    saveLocalEdits(currentMap);
+                    loadMap(mapName);
+                };
+                mapListContainer.appendChild(listItem);
+            }
+        }
+
+        function updateMapSelectorUI() {
+            const thumbnails = document.querySelectorAll('.map-thumbnail');
+            thumbnails.forEach(thumb => {
+                thumb.classList.remove('selected');
+                if (thumb.title === MAPS[currentMap].displayName) {
+                    thumb.classList.add('selected');
+                }
+            });
+        }
+
+        // --- LAYER MENU ---
+        function initLayerMenu() {
+            document.getElementById('layer-menu').classList.remove('collapsed');
+        }
+
+        function toggleLayerMenu() {
+            document.getElementById('layer-menu').classList.toggle('collapsed');
+        }
+
+        function updateLayerMenu() {
+            const customLayersContainer = document.getElementById('custom-layers');
+            customLayersContainer.innerHTML = '<h4>Custom Locals</h4>';
+
+            for (const [layerName, layerData] of Object.entries(customLayers[currentMap] || {})) {
+                const layerItem = document.createElement('div');
+                layerItem.className = 'layer-item';
+                layerItem.innerHTML = `
+                        <input type="checkbox" class="layer-checkbox" id="toggle-${layerName}" checked onchange="toggleCustomLayer('${layerName}')">
+                        <div class="layer-color" style="background: ${layerData.color || '#888'};"></div>
+                        <span style="flex: 1;">${layerName}</span>
+                        ${isAdminMode ? `<button onclick="deleteCustomLayer('${layerName}')">Delete</button>` : ''}
+                    `;
+                customLayersContainer.appendChild(layerItem);
+            }
+        }
+
+        // --- TOGGLE LAYERS ---
+        function toggleLayer(category) {
+            const checked = document.querySelector(`input[onchange="toggleLayer('${category}')"]`).checked;
+            if (checked) map.addLayer(layers[currentMap][category]);
+            else map.removeLayer(layers[currentMap][category]);
+        }
+
+        function toggleCustomLayer(layerName) {
+            const checked = document.querySelector(`input[onchange="toggleCustomLayer('${layerName}')"]`).checked;
+            if (checked) map.addLayer(customLayers[currentMap][layerName].layer);
+            else map.removeLayer(customLayers[currentMap][layerName].layer);
+        }
+
+        // --- USER SYSTEM ---
+        function initUserSystem() {
+            if (!localStorage.getItem('users')) {
+                localStorage.setItem('users', JSON.stringify([]));
+            }
+        }
+
+        // --- UI HELPERS ---
+        function showMessage(msg) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.textContent = msg;
+            messageDiv.style.display = 'block';
+            setTimeout(() => messageDiv.style.display = 'none', 3000);
+        }
+
+        // --- REGISTRATION & LOGIN ---
+        function showRegisterPanel() {
+            document.getElementById('registerPanel').style.display = 'block';
+        }
+
+        function registerUser() {
+            const username = document.getElementById('registerUsername').value;
+            const password = document.getElementById('registerPassword').value;
+            if (!username || !password) {
+                showMessage("Username and password are required!");
+                return;
+            }
+            const users = JSON.parse(localStorage.getItem('users'));
+            if (users.some(u => u.username === username)) {
+                showMessage("Username already taken!");
+                return;
+            }
+            users.push({ username, password });
+            localStorage.setItem('users', JSON.stringify(users));
+            showMessage(`Account created for ${username}! You can now log in.`);
+            document.getElementById('registerPanel').style.display = 'none';
+        }
+
+        function loginAsAdmin() {
+            const username = prompt("Enter your username:");
+            const password = prompt("Enter your password:");
+            const users = JSON.parse(localStorage.getItem('users'));
+
+            if (username === MASTER_ADMIN.username && password === MASTER_ADMIN.password) {
+                currentAdmin = username;
+                isMasterAdmin = true;
+                showMessage(`Welcome, ${username}! Master Admin mode enabled.`);
+                enableAdminMode(true);
+                return;
+            }
+
+            const user = users.find(u => u.username === username && u.password === password);
+            if (user) {
+                currentAdmin = username;
+                isMasterAdmin = false;
+                showMessage(`Welcome, ${username}! Admin mode enabled.`);
+                enableAdminMode(false);
+            } else {
+                showMessage("Invalid username or password.");
+            }
+        }
+
+        // --- ADMIN MODE ---
+        function enableAdminMode(isMaster) {
+            isAdminMode = true;
+            document.getElementById('exitAdminMode').style.display = 'inline-block';
+            document.getElementById('saveLocal').style.display = 'inline-block';
+            document.getElementById('submitEdits').style.display = 'inline-block';
+            document.getElementById('loadEdits').style.display = 'inline-block';
+            document.getElementById('controls-divider').style.display = 'block';
+            document.getElementById('controls-divider-top').style.display = 'block';
+
+            if (isMaster) {
+                document.getElementById('changePassword').textContent = 'Modify Password';
+                document.getElementById('changePassword').style.display = 'inline-block';
+                document.getElementById('changePasswordTop').style.display = 'none';
+            } else {
+                document.getElementById('changePasswordTop').textContent = 'Modify The Administrator Password';
+                document.getElementById('changePasswordTop').style.display = 'inline-block';
+                document.getElementById('changePassword').style.display = 'none';
+            }
+
+            if (isMaster && !document.getElementById('deleteUserButton')) {
+                const deleteUserButton = document.createElement('button');
+                deleteUserButton.id = 'deleteUserButton';
+                deleteUserButton.textContent = 'Delete User';
+                deleteUserButton.onclick = showDeleteUserPanel;
+                document.getElementById('controls').appendChild(deleteUserButton);
+            } else if (!isMaster) {
+                const deleteUserButton = document.getElementById('deleteUserButton');
+                if (deleteUserButton) deleteUserButton.remove();
+            }
+
+            updateLayerMenu();
+
+            map.on('click', function (e) {
+                if (currentAdmin) {
+                    const name = prompt("Enter Marker Name:");
+                    if (name) {
+                        const desc = prompt("Enter Marker Description:");
+                        const rawCategory = prompt("Enter Marker Category:");
+                        if (!rawCategory) return;
+
+                        if (rawCategory.trim().toLowerCase() === "custom") {
+                            const layerName = prompt("Enter a name for this custom layer:");
+                            if (!layerName) return;
+
+                            const layerColor = prompt("Enter a color for this layer (e.g., 'purple', '#FF5733'):", "#888") || '#888';
+
+                            if (!customLayers[currentMap][layerName]) {
+                                customLayers[currentMap][layerName] = {
+                                    layer: L.layerGroup().addTo(map),
+                                    color: layerColor
+                                };
+                                updateLayerMenu();
+                            }
+
+                            const marker = L.marker(e.latlng, {
+                                icon: L.divIcon({
+                                    className: 'custom-marker',
+                                    html: `<div style="background: ${layerColor}; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white;"></div>`
+                                }),
+                                title: name
+                            })
+                                .addTo(customLayers[currentMap][layerName].layer)
+                                .bindPopup(`<b>${name}</b><br>${desc || 'No description'}`);
+
+                            marker.options.markerCategory = layerName;
+                            marker.options.markerType = 'custom';
+                            marker.options.markerDescription = desc || 'No description';
+                            marker.options.isUserCreated = true;
+                            attachUserMarkerHandlers(marker);
+
+                            if (!allMarkers[currentMap][layerName]) {
+                                allMarkers[currentMap][layerName] = [];
+                            }
+                            allMarkers[currentMap][layerName].push(marker);
+                        } else {
+                            const categoryName = ensureCategory(rawCategory);
+                            if (!categoryName) return;
+
+                            marker = L.marker(e.latlng, { icon: icons[categoryName], title: name })
+                                .addTo(layers[currentMap][categoryName])
+                                .bindPopup(`<b>${name}</b><br>${desc || 'No description'}`);
+
+                            marker.options.markerCategory = categoryName;
+                            marker.options.markerType = 'default';
+                            marker.options.markerDescription = desc || 'No description';
+                            marker.options.isUserCreated = true;
+                            attachUserMarkerHandlers(marker);
+
+                            allMarkers[currentMap][categoryName].push(marker);
+                        }
+                    }
+                }
+            });
+        }
+
+        function exitAdminMode() {
+            map.off('click');
+            isAdminMode = false;
+            closeEditMarkerModal();
+            document.getElementById('exitAdminMode').style.display = 'none';
+            document.getElementById('saveLocal').style.display = 'none';
+            document.getElementById('submitEdits').style.display = 'none';
+            document.getElementById('loadEdits').style.display = 'none';
+            document.getElementById('controls-divider').style.display = 'none';
+            document.getElementById('controls-divider-top').style.display = 'none';
+            document.getElementById('changePassword').style.display = 'none';
+            document.getElementById('changePasswordTop').style.display = 'none';
+
+            const deleteUserButton = document.getElementById('deleteUserButton');
+            if (deleteUserButton) deleteUserButton.remove();
+
+            currentAdmin = null;
+            isMasterAdmin = false;
+
+            updateLayerMenu();
+
+            showMessage("Admin mode disabled.");
+        }
+
+        // --- CHANGE PASSWORD ---
+        function changePassword() {
+            if (!currentAdmin) {
+                showMessage("Admin mode required.");
+                return;
+            }
+            document.getElementById('newPassword').value = '';
+            document.getElementById('changePasswordPanel').style.display = 'block';
+        }
+
+        function submitPasswordChange() {
+            const newPassword = document.getElementById('newPassword').value.trim();
+            if (!newPassword) {
+                showMessage("Password is required.");
+                return;
+            }
+
+            if (currentAdmin === MASTER_ADMIN.username) {
+                MASTER_ADMIN.password = newPassword;
+                localStorage.setItem('masterAdminPassword', newPassword);
+                showMessage("Master Admin password updated.");
+                document.getElementById('changePasswordPanel').style.display = 'none';
+                return;
+            }
+
+            const users = JSON.parse(localStorage.getItem('users')) || [];
+            const user = users.find(u => u.username === currentAdmin);
+            if (!user) {
+                showMessage("User not found.");
+                return;
+            }
+
+            user.password = newPassword;
+            localStorage.setItem('users', JSON.stringify(users));
+            showMessage("Password updated.");
+            document.getElementById('changePasswordPanel').style.display = 'none';
+        }
+
+        // --- DELETE USER (MASTER ADMIN ONLY) ---
+        function showDeleteUserPanel() {
+            const panel = document.getElementById('deleteUserPanel');
+            const select = document.getElementById('deleteUserSelect');
+
+            const users = JSON.parse(localStorage.getItem('users')) || [];
+            select.innerHTML = '';
+
+            users.forEach(u => {
+                if (u.username !== MASTER_ADMIN.username) {
+                    const option = document.createElement('option');
+                    option.value = u.username;
+                    option.textContent = u.username;
+                    select.appendChild(option);
+                }
+            });
+
+            if (select.options.length === 0) {
+                showMessage("No users available to delete.");
+                return;
+            }
+
+            panel.style.display = 'block';
+        }
+
+        function deleteUser() {
+            const usernameToDelete = document.getElementById('deleteUserSelect').value;
+            if (!usernameToDelete) {
+                showMessage("Select a user.");
+                return;
+            }
+
+            if (usernameToDelete === MASTER_ADMIN.username) {
+                showMessage("Cannot delete the master admin!");
+                return;
+            }
+
+            const users = JSON.parse(localStorage.getItem('users')) || [];
+            const updatedUsers = users.filter(u => u.username !== usernameToDelete);
+
+            if (updatedUsers.length === users.length) {
+                showMessage("User not found.");
+                return;
+            }
+
+            localStorage.setItem('users', JSON.stringify(updatedUsers));
+            showMessage(`User ${usernameToDelete} deleted.`);
+            document.getElementById('deleteUserPanel').style.display = 'none';
+        }
+
+        // --- DELETE MARKER ---
+        function deleteMarker(button) {
+            const popup = button.closest('.leaflet-popup');
+            const marker = popup._source;
+            map.removeLayer(marker);
+
+            for (const [category, markers] of Object.entries(allMarkers[currentMap])) {
+                const index = markers.indexOf(marker);
+                if (index !== -1) markers.splice(index, 1);
+            }
+            for (const [layerName, layerData] of Object.entries(customLayers[currentMap] || {})) {
+                layerData.layer.eachLayer(l => {
+                    if (l === marker) layerData.layer.removeLayer(l);
+                });
+            }
+        }
+
+        // --- SAVE & SUBMIT EDITS ---
+        function saveLocalEdits(mapName = currentMap) {
+            const localEdits = [];
+
+            for (const [category, markers] of Object.entries(allMarkers[mapName] || {})) {
+                if (categories[category]) {
+                    markers.forEach(marker => {
+                        if (!MAPS[mapName].preDefinedMarkers.some(m => m.name === marker.options.title)) {
+                            localEdits.push({
+                                lat: marker.getLatLng().lat,
+                                lng: marker.getLatLng().lng,
+                                name: marker.options.title,
+                                desc: marker.options.markerDescription || 'No description',
+                                category: category,
+                                type: 'default'
+                            });
+                        }
+                    });
+                }
+            }
+
+            for (const [layerName, layerData] of Object.entries(customLayers[mapName] || {})) {
+                layerData.layer.eachLayer(layer => {
+                    if (layer instanceof L.Marker) {
+                        localEdits.push({
+                            lat: layer.getLatLng().lat,
+                            lng: layer.getLatLng().lng,
+                            name: layer.options.title,
+                            desc: layer.options.markerDescription || 'No description',
+                            category: layerName,
+                            type: 'custom',
+                            color: layerData.color
+                        });
+                    }
+                });
+            }
+
+            localStorage.setItem(`localMapEdits_${mapName}`, JSON.stringify(localEdits));
+            showMessage(`Local edits saved for ${MAPS[mapName].displayName}!`);
+        }
+
+        function submitLocalEdits() {
+            const localEdits = JSON.parse(localStorage.getItem(`localMapEdits_${currentMap}`) || '[]');
+            const dataStr = JSON.stringify(localEdits, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `submitted_map_edits_${currentMap}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showMessage(`Local edits for ${MAPS[currentMap].displayName} successfully exported to JSON!`);
+        }
+
+        // --- LOAD LOCAL EDITS ---
+        function loadLocalEdits(mapName) {
+            const localEdits = JSON.parse(localStorage.getItem(`localMapEdits_${mapName}`) || '[]');
+            localEdits.forEach(marker => {
+                if (marker.type === 'default' && categories[marker.category]) {
+                    const m = L.marker([marker.lat, marker.lng], { icon: icons[marker.category], title: marker.name })
+                        .addTo(layers[mapName][marker.category])
+                        .bindPopup(`<b>${marker.name}</b><br>${marker.desc || 'No description'}`);
+
+                    m.options.markerCategory = marker.category;
+                    m.options.markerType = 'default';
+                    m.options.markerDescription = marker.desc || 'No description';
+                    m.options.isUserCreated = true;
+                    attachUserMarkerHandlers(m);
+
+                    allMarkers[mapName][marker.category].push(m);
+                }
+                else if (marker.type === 'custom') {
+                    if (!customLayers[mapName][marker.category]) {
+                        customLayers[mapName][marker.category] = {
+                            layer: L.layerGroup().addTo(map),
+                            color: marker.color || '#888'
+                        };
+                        updateLayerMenu();
+                    }
+
+                    const m = L.marker([marker.lat, marker.lng], {
+                        icon: L.divIcon({
+                            className: 'custom-marker',
+                            html: `<div style="background: ${marker.color || '#888'}; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white;"></div>`
+                        }),
+                        title: marker.name
+                    })
+                        .addTo(customLayers[mapName][marker.category].layer)
+                        .bindPopup(`<b>${marker.name}</b><br>${marker.desc || 'No description'}`);
+
+                    m.options.markerCategory = marker.category;
+                    m.options.markerType = 'custom';
+                    m.options.markerDescription = marker.desc || 'No description';
+                    m.options.isUserCreated = true;
+                    attachUserMarkerHandlers(m);
+
+                    if (!allMarkers[mapName][marker.category]) {
+                        allMarkers[mapName][marker.category] = [];
+                    }
+                    allMarkers[mapName][marker.category].push(m);
+                }
+            });
+        }
+
+        // --- MARKER EDITING ---
+        function attachUserMarkerHandlers(marker) {
+            marker.on('click', function (e) {
+                if (!e.originalEvent) return;
+
+                if (!e.originalEvent.ctrlKey) {
+                    L.DomEvent.stop(e);
+                    map.closePopup();
+                    return;
+                }
+
+                if (!isAdminMode || !currentAdmin) {
+                    showMessage("Admin mode required to edit markers.");
+                    return;
+                }
+
+                L.DomEvent.stop(e);
+                map.closePopup();
+                openEditMarkerModal(marker);
+            });
+        }
+
+        function openEditMarkerModal(marker) {
+            if (!marker.options.isUserCreated) {
+                showMessage("Only user-created markers can be edited.");
+                return;
+            }
+
+            editingMarker = marker;
+            document.getElementById('editMarkerName').value = marker.options.title || '';
+            document.getElementById('editMarkerDescription').value = marker.options.markerDescription || '';
+            document.getElementById('editMarkerType').value = marker.options.markerCategory || 'Towns';
+
+            document.getElementById('edit-marker-modal').style.display = 'block';
+        }
+
+        function closeEditMarkerModal() {
+            document.getElementById('edit-marker-modal').style.display = 'none';
+            editingMarker = null;
+        }
+
+        function removeMarkerFromCollections(marker) {
+            const oldCategory = marker.options.markerCategory;
+
+            if (layers[currentMap][oldCategory]) {
+                layers[currentMap][oldCategory].removeLayer(marker);
+            }
+
+            if (allMarkers[currentMap][oldCategory]) {
+                allMarkers[currentMap][oldCategory] = allMarkers[currentMap][oldCategory].filter(m => m !== marker);
+            }
+        }
+
+        function saveEditedMarker() {
+            if (!editingMarker) return;
+
+            const name = document.getElementById('editMarkerName').value.trim();
+            const desc = document.getElementById('editMarkerDescription').value.trim();
+            const category = document.getElementById('editMarkerType').value;
+
+            if (!name || !category || !categories[category]) {
+                showMessage("Name and valid marker type are required.");
+                return;
+            }
+
+            removeMarkerFromCollections(editingMarker);
+
+            editingMarker.options.title = name;
+            editingMarker.options.markerDescription = desc || 'No description';
+            editingMarker.options.markerCategory = category;
+            editingMarker.options.markerType = 'default';
+
+            editingMarker.setIcon(icons[category]);
+            editingMarker.bindPopup(`<b>${name}</b><br>${desc || 'No description'}`);
+            layers[currentMap][category].addLayer(editingMarker);
+
+            if (!allMarkers[currentMap][category]) {
+                allMarkers[currentMap][category] = [];
+            }
+            allMarkers[currentMap][category].push(editingMarker);
+
+            showMessage("Marker updated.");
+            closeEditMarkerModal();
+        }
+
+        function deleteEditingMarker() {
+            if (!editingMarker) return;
+            removeMarkerFromCollections(editingMarker);
+            map.removeLayer(editingMarker);
+            showMessage("Marker deleted.");
+            closeEditMarkerModal();
+        }
+
+        function resolveCategoryName(input) {
+            const trimmed = input.trim();
+            const match = Object.keys(categories).find(k => k.toLowerCase() === trimmed.toLowerCase());
+            return match || trimmed;
+        }
+
+        function registerCategory(categoryName, iconFileName, color) {
+            if (categories[categoryName]) return;
+
+            categories[categoryName] = {
+                color: color || '#888',
+                iconUrl: `site_icons/${iconFileName}`
+            };
+
+            icons[categoryName] = L.icon({
+                iconUrl: categories[categoryName].iconUrl,
+                iconSize: [32, 32],
+                iconAnchor: [16, 32],
+                popupAnchor: [0, -32]
+            });
+
+            if (!layers[currentMap]) {
+                layers[currentMap] = {};
+            }
+
+            if (!layers[currentMap][categoryName]) {
+                layers[currentMap][categoryName] = L.layerGroup().addTo(map);
+            }
+
+            if (!allMarkers[currentMap]) {
+                allMarkers[currentMap] = {};
+            }
+
+            if (!allMarkers[currentMap][categoryName]) {
+                allMarkers[currentMap][categoryName] = [];
+            }
+
+            renderDefaultLayerItems();
+            refreshEditMarkerTypes();
+        }
+
+        function ensureCategory(input) {
+            const categoryName = resolveCategoryName(input);
+            if (categories[categoryName]) return categoryName;
+
+            const iconFileName = prompt("Enter icon file name from site_icons (example: gneiss.png):", `${categoryName.toLowerCase()}.png`);
+            if (!iconFileName) return null;
+
+            const color = prompt("Enter a color for this category:", "#888") || "#888";
+            registerCategory(categoryName, iconFileName, color);
+            return categoryName;
+        }
+
+        function renderDefaultLayerItems() {
+            const groupTargets = {
+                "Mining Locations": document.getElementById('mining-layer-items'),
+                "Town Locations": document.getElementById('town-layer-items'),
+
+                // <!-- Creating A New Category [4 of 4] -->
+                "Example Category": document.getElementById('example-layer-items')
+            };
+
+            Object.values(groupTargets).forEach(container => {
+                if (container) container.innerHTML = '';
+            });
+
+            for (const [groupName, items] of Object.entries(categoryGroups)) {
+                const container = groupTargets[groupName];
+                if (!container) continue;
+
+                items.forEach(name => {
+                    const config = categories[name];
+                    if (!config) return;
+
+                    const item = document.createElement('div');
+                    item.className = 'layer-item';
+                    item.innerHTML = `
+                            <input type="checkbox" class="layer-checkbox" id="toggle-${name}" checked onchange="toggleLayer('${name}')">
+                            <div class="layer-color" style="background: ${config.color};"></div>
+                            <span>${name}</span>
+                        `;
+                    container.appendChild(item);
+                });
+            }
+        }
+
+        function refreshEditMarkerTypes() {
+            const select = document.getElementById('editMarkerType');
+            if (!select) return;
+
+            select.innerHTML = '';
+            for (const name of Object.keys(categories)) {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                select.appendChild(option);
+            }
+        }
+        // --- INIT ---
+        initUserSystem();
+        initMap();
+
+        function openEditsFilePicker() {
+            if (!isAdminMode || !currentAdmin) {
+                showMessage("Admin mode required to load edits.");
+                return;
+            }
+            document.getElementById('editsFileInput').click();
+        }
+
+        function importEditsFromFile(file) {
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = () => {
+                try {
+                    const edits = JSON.parse(reader.result);
+                    applyImportedEdits(edits);
+                } catch {
+                    showMessage("Invalid JSON file.");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function applyImportedEdits(edits) {
+            if (!Array.isArray(edits)) {
+                showMessage("Edits file must be a JSON array.");
+                return;
+            }
+
+            let added = 0;
+            let skipped = 0;
+
+            edits.forEach(item => {
+                if (!item || typeof item.lat !== 'number' || typeof item.lng !== 'number' || !item.category) {
+                    skipped++;
+                    return;
+                }
+
+                if (item.type === 'custom') {
+                    if (!customLayers[currentMap][item.category]) {
+                        customLayers[currentMap][item.category] = {
+                            layer: L.layerGroup().addTo(map),
+                            color: item.color || '#888'
+                        };
+                        updateLayerMenu();
+                    }
+
+                    const m = L.marker([item.lat, item.lng], {
+                        icon: L.divIcon({
+                            className: 'custom-marker',
+                            html: `<div style="background: ${item.color || '#888'}; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white;"></div>`
+                        }),
+                        title: item.name || 'Unnamed'
+                    })
+                        .addTo(customLayers[currentMap][item.category].layer)
+                        .bindPopup(`<b>${item.name || 'Unnamed'}</b><br>${item.desc || 'No description'}`);
+
+                    m.options.markerCategory = item.category;
+                    m.options.markerType = 'custom';
+                    m.options.markerDescription = item.desc || 'No description';
+                    m.options.isUserCreated = true;
+                    attachUserMarkerHandlers(m);
+
+                    if (!allMarkers[currentMap][item.category]) {
+                        allMarkers[currentMap][item.category] = [];
+                    }
+                    allMarkers[currentMap][item.category].push(m);
+                    added++;
+                    return;
+                }
+
+                if (!categories[item.category]) {
+                    skipped++;
+                    return;
+                }
+
+                if (!allMarkers[currentMap][item.category]) {
+                    allMarkers[currentMap][item.category] = [];
+                }
+
+                const marker = L.marker([item.lat, item.lng], {
+                    icon: icons[item.category],
+                    title: item.name || 'Unnamed'
+                })
+                    .addTo(layers[currentMap][item.category])
+                    .bindPopup(`<b>${item.name || 'Unnamed'}</b><br>${item.desc || 'No description'}`);
+
+                marker.options.markerCategory = item.category;
+                marker.options.markerType = 'default';
+                marker.options.markerDescription = item.desc || 'No description';
+                marker.options.isUserCreated = true;
+                attachUserMarkerHandlers(marker);
+
+                allMarkers[currentMap][item.category].push(marker);
+                added++;
+            });
+
+            showMessage(`Imported ${added} marker(s). Skipped ${skipped}.`);
+        }
+
+        function deleteCustomLayer(layerName) {
+            if (!customLayers[currentMap] || !customLayers[currentMap][layerName]) return;
+
+            // Remove all markers from map and tracking
+            customLayers[currentMap][layerName].layer.eachLayer(marker => {
+                map.removeLayer(marker);
+            });
+
+            delete customLayers[currentMap][layerName];
+            if (allMarkers[currentMap] && allMarkers[currentMap][layerName]) {
+                delete allMarkers[currentMap][layerName];
+            }
+
+            updateLayerMenu();
+            showMessage(`Custom layer "${layerName}" deleted.`);
+        }
+    </script>
+</body>
+</html>
